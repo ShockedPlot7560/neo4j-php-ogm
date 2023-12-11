@@ -9,6 +9,17 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace GraphAware\Neo4j\OGM\Tests\Metadata\Factory;
 
 use Doctrine\Common\Annotations\AnnotationReader;
@@ -27,8 +38,12 @@ use GraphAware\Neo4j\OGM\Tests\Metadata\Factory\Fixtures\Movie;
 use GraphAware\Neo4j\OGM\Tests\Metadata\Factory\Fixtures\MovieRepository;
 use GraphAware\Neo4j\OGM\Tests\Metadata\Factory\Fixtures\Person;
 use GraphAware\Neo4j\OGM\Tests\Metadata\Factory\Fixtures\Rating;
-use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\TestCase;
+use function file_get_contents;
+use function getenv;
+use function libxml_get_last_error;
+use function libxml_use_internal_errors;
+use function sprintf;
 
 /**
  * Class GraphEntityMetadataFactoryTest.
@@ -37,173 +52,173 @@ use PHPUnit\Framework\TestCase;
  */
 class GraphEntityMetadataFactoryTest extends TestCase
 {
-    private AnnotationGraphEntityMetadataFactory $annotationMetadataFactory;
+	private AnnotationGraphEntityMetadataFactory $annotationMetadataFactory;
 
-    private XmlGraphEntityMetadataFactory $xmlMetadataFactory;
+	private XmlGraphEntityMetadataFactory $xmlMetadataFactory;
 
-    protected function setUp(): void
-    {
-        $this->annotationMetadataFactory = new AnnotationGraphEntityMetadataFactory(new AnnotationReader());
-        $this->xmlMetadataFactory = new XmlGraphEntityMetadataFactory(
-            new SymfonyFileLocator(
-                [__DIR__.'/Fixtures/graphaware' => 'GraphAware\\Neo4j\\OGM\\Tests\\Metadata\\Factory\\Fixtures'],
-                '.ogm.xml'
-            ),
-            new NodeEntityMetadataFactory(
-                new PropertyXmlMetadataFactory(),
-                new RelationshipXmlMetadataFactory(),
-                new IdXmlMetadataFactory()
-            ),
-            new RelationshipEntityMetadataFactory(new PropertyXmlMetadataFactory(), new IdXmlMetadataFactory())
-        );
-    }
+	protected function setUp() : void
+	{
+		$this->annotationMetadataFactory = new AnnotationGraphEntityMetadataFactory(new AnnotationReader());
+		$this->xmlMetadataFactory = new XmlGraphEntityMetadataFactory(
+			new SymfonyFileLocator(
+				[__DIR__ . '/Fixtures/graphaware' => 'GraphAware\\Neo4j\\OGM\\Tests\\Metadata\\Factory\\Fixtures'],
+				'.ogm.xml'
+			),
+			new NodeEntityMetadataFactory(
+				new PropertyXmlMetadataFactory(),
+				new RelationshipXmlMetadataFactory(),
+				new IdXmlMetadataFactory()
+			),
+			new RelationshipEntityMetadataFactory(new PropertyXmlMetadataFactory(), new IdXmlMetadataFactory())
+		);
+	}
 
-    public function testMovieMetadata()
-    {
-        $this->assertMovieMetadata($this->annotationMetadataFactory->create(Movie::class));
-        $this->assertMovieMetadata($this->xmlMetadataFactory->create(Movie::class));
-    }
+	public function testMovieMetadata()
+	{
+		$this->assertMovieMetadata($this->annotationMetadataFactory->create(Movie::class));
+		$this->assertMovieMetadata($this->xmlMetadataFactory->create(Movie::class));
+	}
 
-    public function testPersonMetadata()
-    {
-        $this->assertPersonMetadata($this->annotationMetadataFactory->create(Person::class));
-        $this->assertPersonMetadata($this->xmlMetadataFactory->create(Person::class));
-    }
+	public function testPersonMetadata()
+	{
+		$this->assertPersonMetadata($this->annotationMetadataFactory->create(Person::class));
+		$this->assertPersonMetadata($this->xmlMetadataFactory->create(Person::class));
+	}
 
-    /**
-     * @group property-convert
-     */
-    public function testPropertyConvertMetadata()
-    {
-        $personMetadata = $this->annotationMetadataFactory->create(Person::class);
-        /** @var EntityPropertyMetadata $createdMetadata */
-        $createdMetadata = $personMetadata->getPropertyMetadata('created');
-        $this->assertTrue($createdMetadata->hasConverter());
-        $this->assertEquals('datetime', $createdMetadata->getConverterType());
-        $this->assertIsArray($createdMetadata->getConverterOptions());
-        $this->assertArrayHasKey('db_format', $createdMetadata->getConverterOptions());
-    }
+	/**
+	 * @group property-convert
+	 */
+	public function testPropertyConvertMetadata()
+	{
+		$personMetadata = $this->annotationMetadataFactory->create(Person::class);
+		/** @var EntityPropertyMetadata $createdMetadata */
+		$createdMetadata = $personMetadata->getPropertyMetadata('created');
+		$this->assertTrue($createdMetadata->hasConverter());
+		$this->assertEquals('datetime', $createdMetadata->getConverterType());
+		$this->assertIsArray($createdMetadata->getConverterOptions());
+		$this->assertArrayHasKey('db_format', $createdMetadata->getConverterOptions());
+	}
 
-    public function testRatingMetadata()
-    {
-        $this->assertRatingMetadata($this->annotationMetadataFactory->create(Rating::class));
-        $this->assertRatingMetadata($this->xmlMetadataFactory->create(Rating::class));
-    }
+	public function testRatingMetadata()
+	{
+		$this->assertRatingMetadata($this->annotationMetadataFactory->create(Rating::class));
+		$this->assertRatingMetadata($this->xmlMetadataFactory->create(Rating::class));
+	}
 
-    public function testMappingValidAccordingToSchema()
-    {
-        $filesIterator = new \GlobIterator(__DIR__.'/Fixtures/graphaware/*.ogm.xml');
+	public function testMappingValidAccordingToSchema()
+	{
+		$filesIterator = new \GlobIterator(__DIR__ . '/Fixtures/graphaware/*.ogm.xml');
 
-        $previous = libxml_use_internal_errors(true);
-        foreach ($filesIterator as $fileInfo) {
-            $dom = new \DOMDocument();
-            $dom->loadXML(file_get_contents($fileInfo->getPathName()));
+		$previous = libxml_use_internal_errors(true);
+		foreach ($filesIterator as $fileInfo) {
+			$dom = new \DOMDocument();
+			$dom->loadXML(file_get_contents($fileInfo->getPathName()));
 
-            if (!$dom->schemaValidate(getenv('basedir').'graphaware-mapping.xsd')) {
-                $this->fail(sprintf(
-                    'Mapping file "%s" is not valid according to schema: %s',
-                    $fileInfo->getFileName(),
-                    libxml_get_last_error()->message
-                ));
-            }
-        }
-        libxml_use_internal_errors($previous);
-        $this->addToAssertionCount(1);
-    }
+			if (!$dom->schemaValidate(getenv('basedir') . 'graphaware-mapping.xsd')) {
+				$this->fail(sprintf(
+					'Mapping file "%s" is not valid according to schema: %s',
+					$fileInfo->getFileName(),
+					libxml_get_last_error()->message
+				));
+			}
+		}
+		libxml_use_internal_errors($previous);
+		$this->addToAssertionCount(1);
+	}
 
-    /**
-     * @param NodeEntityMetadata|RelationshipEntityMetadata $metadata
-     */
-    private function assertRatingMetadata($metadata)
-    {
-        $this->assertSame('RATED', $metadata->getType());
-        $this->assertSame('id', $metadata->getIdentifier());
-        $this->assertSame(Person::class, $metadata->getStartNode());
-        $this->assertSame(Movie::class, $metadata->getEndNode());
+	/**
+	 * @param NodeEntityMetadata|RelationshipEntityMetadata $metadata
+	 */
+	private function assertRatingMetadata($metadata)
+	{
+		$this->assertSame('RATED', $metadata->getType());
+		$this->assertSame('id', $metadata->getIdentifier());
+		$this->assertSame(Person::class, $metadata->getStartNode());
+		$this->assertSame(Movie::class, $metadata->getEndNode());
 
-        $properties = $metadata->getPropertiesMetadata();
-        $this->assertCount(1, $properties);
+		$properties = $metadata->getPropertiesMetadata();
+		$this->assertCount(1, $properties);
 
-        $scoreProperty = $metadata->getPropertyMetadata('score');
-        $this->assertSame('float', $scoreProperty->getPropertyAnnotationMetadata()->getType());
-        $this->assertSame(true, $scoreProperty->getPropertyAnnotationMetadata()->isNullable());
-    }
+		$scoreProperty = $metadata->getPropertyMetadata('score');
+		$this->assertSame('float', $scoreProperty->getPropertyAnnotationMetadata()->getType());
+		$this->assertSame(true, $scoreProperty->getPropertyAnnotationMetadata()->isNullable());
+	}
 
-    /**
-     * @param NodeEntityMetadata|RelationshipEntityMetadata $metadata
-     */
-    private function assertPersonMetadata($metadata)
-    {
-        $this->assertSame('Person', $metadata->getLabel());
-        $this->assertSame(false, $metadata->hasCustomRepository());
+	/**
+	 * @param NodeEntityMetadata|RelationshipEntityMetadata $metadata
+	 */
+	private function assertPersonMetadata($metadata)
+	{
+		$this->assertSame('Person', $metadata->getLabel());
+		$this->assertSame(false, $metadata->hasCustomRepository());
 
-        $this->assertSame('id', $metadata->getIdentifier());
+		$this->assertSame('id', $metadata->getIdentifier());
 
-        $properties = $metadata->getPropertiesMetadata();
+		$properties = $metadata->getPropertiesMetadata();
 
-        $nameProperty = $metadata->getPropertyMetadata('name');
-        $this->assertSame('string', $nameProperty->getPropertyAnnotationMetadata()->getType());
-        $this->assertSame(true, $nameProperty->getPropertyAnnotationMetadata()->isNullable());
+		$nameProperty = $metadata->getPropertyMetadata('name');
+		$this->assertSame('string', $nameProperty->getPropertyAnnotationMetadata()->getType());
+		$this->assertSame(true, $nameProperty->getPropertyAnnotationMetadata()->isNullable());
 
-        $ageProperty = $metadata->getPropertyMetadata('age');
-        $this->assertSame('int', $ageProperty->getPropertyAnnotationMetadata()->getType());
-        $this->assertSame(false, $ageProperty->getPropertyAnnotationMetadata()->isNullable());
+		$ageProperty = $metadata->getPropertyMetadata('age');
+		$this->assertSame('int', $ageProperty->getPropertyAnnotationMetadata()->getType());
+		$this->assertSame(false, $ageProperty->getPropertyAnnotationMetadata()->isNullable());
 
-        $this->assertCount(1, $metadata->getLabeledProperties());
-        $labeledAgeProperty = $metadata->getLabeledProperty('age');
-        $this->assertSame('my-age', $labeledAgeProperty->getLabelName());
+		$this->assertCount(1, $metadata->getLabeledProperties());
+		$labeledAgeProperty = $metadata->getLabeledProperty('age');
+		$this->assertSame('my-age', $labeledAgeProperty->getLabelName());
 
-        $relations = $metadata->getRelationships();
-        $this->assertCount(3, $relations);
+		$relations = $metadata->getRelationships();
+		$this->assertCount(3, $relations);
 
-        $moviesRelation = $metadata->getRelationship('movies');
-        $this->assertSame('ACTED_IN', $moviesRelation->getType());
-        $this->assertSame('OUTGOING', $moviesRelation->getDirection());
-        $this->assertSame(Movie::class, $moviesRelation->getTargetEntity());
-        $this->assertSame(true, $moviesRelation->isCollection());
-        $this->assertSame('actors', $moviesRelation->getMappedByProperty());
+		$moviesRelation = $metadata->getRelationship('movies');
+		$this->assertSame('ACTED_IN', $moviesRelation->getType());
+		$this->assertSame('OUTGOING', $moviesRelation->getDirection());
+		$this->assertSame(Movie::class, $moviesRelation->getTargetEntity());
+		$this->assertSame(true, $moviesRelation->isCollection());
+		$this->assertSame('actors', $moviesRelation->getMappedByProperty());
 
-        $moviesRelation = $metadata->getRelationship('followers');
-        $this->assertSame('FOLLOWS', $moviesRelation->getType());
-        $this->assertSame('INCOMING', $moviesRelation->getDirection());
-        $this->assertSame(Person::class, $moviesRelation->getTargetEntity());
-        $this->assertSame(true, $moviesRelation->isCollection());
-        $this->assertSame('following', $moviesRelation->getMappedByProperty());
+		$moviesRelation = $metadata->getRelationship('followers');
+		$this->assertSame('FOLLOWS', $moviesRelation->getType());
+		$this->assertSame('INCOMING', $moviesRelation->getDirection());
+		$this->assertSame(Person::class, $moviesRelation->getTargetEntity());
+		$this->assertSame(true, $moviesRelation->isCollection());
+		$this->assertSame('following', $moviesRelation->getMappedByProperty());
 
-        $moviesRelation = $metadata->getRelationship('following');
-        $this->assertSame('FOLLOWS', $moviesRelation->getType());
-        $this->assertSame('OUTGOING', $moviesRelation->getDirection());
-        $this->assertSame(Person::class, $moviesRelation->getTargetEntity());
-        $this->assertSame(true, $moviesRelation->isCollection());
-        $this->assertSame('followers', $moviesRelation->getMappedByProperty());
-    }
+		$moviesRelation = $metadata->getRelationship('following');
+		$this->assertSame('FOLLOWS', $moviesRelation->getType());
+		$this->assertSame('OUTGOING', $moviesRelation->getDirection());
+		$this->assertSame(Person::class, $moviesRelation->getTargetEntity());
+		$this->assertSame(true, $moviesRelation->isCollection());
+		$this->assertSame('followers', $moviesRelation->getMappedByProperty());
+	}
 
-    /**
-     * @param NodeEntityMetadata|RelationshipEntityMetadata $metadata
-     */
-    private function assertMovieMetadata($metadata)
-    {
-        $this->assertSame('Movie', $metadata->getLabel());
-        $this->assertSame(MovieRepository::class, $metadata->getRepositoryClass());
+	/**
+	 * @param NodeEntityMetadata|RelationshipEntityMetadata $metadata
+	 */
+	private function assertMovieMetadata($metadata)
+	{
+		$this->assertSame('Movie', $metadata->getLabel());
+		$this->assertSame(MovieRepository::class, $metadata->getRepositoryClass());
 
-        $this->assertSame('id', $metadata->getIdentifier());
+		$this->assertSame('id', $metadata->getIdentifier());
 
-        $properties = $metadata->getPropertiesMetadata();
-        $this->assertCount(1, $properties);
+		$properties = $metadata->getPropertiesMetadata();
+		$this->assertCount(1, $properties);
 
-        $nameProperty = $metadata->getPropertyMetadata('name');
-        $this->assertSame('string', $nameProperty->getPropertyAnnotationMetadata()->getType());
-        $this->assertSame(true, $nameProperty->getPropertyAnnotationMetadata()->isNullable());
+		$nameProperty = $metadata->getPropertyMetadata('name');
+		$this->assertSame('string', $nameProperty->getPropertyAnnotationMetadata()->getType());
+		$this->assertSame(true, $nameProperty->getPropertyAnnotationMetadata()->isNullable());
 
-        $relations = $metadata->getRelationships();
-        $this->assertCount(1, $relations);
+		$relations = $metadata->getRelationships();
+		$this->assertCount(1, $relations);
 
-        $actorsRelation = $metadata->getRelationship('actors');
-        $this->assertSame('ACTED_IN', $actorsRelation->getType());
-        $this->assertSame('OUTGOING', $actorsRelation->getDirection());
-        $this->assertSame(Person::class, $actorsRelation->getTargetEntity());
-        $this->assertSame(true, $actorsRelation->isCollection());
-        $this->assertSame(false, $actorsRelation->isLazy());
-        $this->assertSame(false, $actorsRelation->hasOrderBy());
-    }
+		$actorsRelation = $metadata->getRelationship('actors');
+		$this->assertSame('ACTED_IN', $actorsRelation->getType());
+		$this->assertSame('OUTGOING', $actorsRelation->getDirection());
+		$this->assertSame(Person::class, $actorsRelation->getTargetEntity());
+		$this->assertSame(true, $actorsRelation->isCollection());
+		$this->assertSame(false, $actorsRelation->isLazy());
+		$this->assertSame(false, $actorsRelation->hasOrderBy());
+	}
 }

@@ -1,44 +1,54 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+declare(strict_types=1);
+
 namespace GraphAware\Neo4j\OGM\Tests\Integration;
 
 use GraphAware\Neo4j\OGM\Tests\Integration\Models\MoviesDemo\Movie;
 use GraphAware\Neo4j\OGM\Tests\Integration\Repository\MoviesCustomRepository;
 
 /**
- *
  * @group custom-repository
  */
 class CustomRepositoryTest extends IntegrationTestCase
 {
-   public function setUp(): void
+   public function setUp() : void
    {
-       parent::setUp();
-       $this->clearDb();
-       $this->playMovies();
+	   parent::setUp();
+	   $this->clearDb();
+	   $this->playMovies();
    }
 
    public function testCustomRepositoryIsUsed()
    {
-       $repository = $this->em->getRepository(Movie::class);
-       $this->assertInstanceOf(MoviesCustomRepository::class, $repository);
+	   $repository = $this->em->getRepository(Movie::class);
+	   $this->assertInstanceOf(MoviesCustomRepository::class, $repository);
    }
 
    public function testCustomRepositoryInheritsBaseRepositoryMethods()
    {
-       /** @var MoviesCustomRepository $repository */
-       $repository = $this->em->getRepository(Movie::class);
-       $movies = $repository->findAll();
-       $this->assertCount(38, $movies);
+	   /** @var MoviesCustomRepository $repository */
+	   $repository = $this->em->getRepository(Movie::class);
+	   $movies = $repository->findAll();
+	   $this->assertCount(38, $movies);
    }
 
    public function testMethodsOnCustomRepositoryAreUsed()
    {
-       /** @var MoviesCustomRepository $repository */
-       $repository = $this->em->getRepository(Movie::class);
+	   /** @var MoviesCustomRepository $repository */
+	   $repository = $this->em->getRepository(Movie::class);
 
-       $result = $repository->findAllWithScore();
-       $this->assertInstanceOf(Movie::class, $result[0]['n']);
-       $this->assertEquals(12, $result[0]['score']);
+	   $result = $repository->findAllWithScore();
+	   $this->assertInstanceOf(Movie::class, $result[0]['n']);
+	   $this->assertEquals(12, $result[0]['score']);
    }
 }

@@ -9,6 +9,17 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace GraphAware\Neo4j\OGM\Tests\Metadata;
 
 use Doctrine\Common\Annotations\AnnotationReader;
@@ -19,6 +30,7 @@ use GraphAware\Neo4j\OGM\Metadata\GraphEntityMetadata;
 use GraphAware\Neo4j\OGM\Metadata\NodeEntityMetadata;
 use GraphAware\Neo4j\OGM\Tests\Metadata\Factory\Fixtures\Person;
 use PHPUnit\Framework\TestCase;
+use function getenv;
 
 /**
  * Class MetadataFactoryITest.
@@ -27,47 +39,45 @@ use PHPUnit\Framework\TestCase;
  */
 class MetadataFactoryITest extends TestCase
 {
-    protected $annotationReader;
+	protected $annotationReader;
 
-    /**
-     * @var AnnotationGraphEntityMetadataFactory
-     */
-    protected $entityMetadataFactory;
+	/** @var AnnotationGraphEntityMetadataFactory */
+	protected $entityMetadataFactory;
 
-    public function setUp(): void
-    {
-        parent::setUp();
-        $this->annotationReader = new FileCacheReader(
-            new AnnotationReader(),
-            getenv('proxydir'),
-            true
-        );
+	public function setUp() : void
+	{
+		parent::setUp();
+		$this->annotationReader = new FileCacheReader(
+			new AnnotationReader(),
+			getenv('proxydir'),
+			true
+		);
 
-        $this->entityMetadataFactory = new AnnotationGraphEntityMetadataFactory($this->annotationReader);
-    }
+		$this->entityMetadataFactory = new AnnotationGraphEntityMetadataFactory($this->annotationReader);
+	}
 
-    public function testNodeEntityMetadataIsCreated()
-    {
-        $entityMetadata = $this->entityMetadataFactory->create(Person::class);
-        $this->assertInstanceOf(GraphEntityMetadata::class, $entityMetadata);
-        $this->assertInstanceOf(NodeEntityMetadata::class, $entityMetadata);
-        $this->assertCount(3, $entityMetadata->getPropertiesMetadata());
-        $this->assertInstanceOf(EntityPropertyMetadata::class, $entityMetadata->getPropertyMetadata('name'));
-    }
+	public function testNodeEntityMetadataIsCreated()
+	{
+		$entityMetadata = $this->entityMetadataFactory->create(Person::class);
+		$this->assertInstanceOf(GraphEntityMetadata::class, $entityMetadata);
+		$this->assertInstanceOf(NodeEntityMetadata::class, $entityMetadata);
+		$this->assertCount(3, $entityMetadata->getPropertiesMetadata());
+		$this->assertInstanceOf(EntityPropertyMetadata::class, $entityMetadata->getPropertyMetadata('name'));
+	}
 
-    public function testNewInstancesOfGivenClassCanBeCreate()
-    {
-        $entityMetadata = $this->entityMetadataFactory->create(Person::class);
-        $o = $entityMetadata->newInstance();
-        $this->assertInstanceOf(Person::class, $o);
-    }
+	public function testNewInstancesOfGivenClassCanBeCreate()
+	{
+		$entityMetadata = $this->entityMetadataFactory->create(Person::class);
+		$o = $entityMetadata->newInstance();
+		$this->assertInstanceOf(Person::class, $o);
+	}
 
-    public function testValueCanBeSetOnInstantiatedObject()
-    {
-        $entityMetadata = $this->entityMetadataFactory->create(Person::class);
-        /** @var Person $o */
-        $o = $entityMetadata->newInstance();
-        $entityMetadata->getPropertyMetadata('name')->setValue($o, 'John');
-        $this->assertSame('John', $o->getName());
-    }
+	public function testValueCanBeSetOnInstantiatedObject()
+	{
+		$entityMetadata = $this->entityMetadataFactory->create(Person::class);
+		/** @var Person $o */
+		$o = $entityMetadata->newInstance();
+		$entityMetadata->getPropertyMetadata('name')->setValue($o, 'John');
+		$this->assertSame('John', $o->getName());
+	}
 }

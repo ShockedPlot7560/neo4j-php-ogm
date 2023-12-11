@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 declare(strict_types=1);
 
 /*
@@ -35,116 +44,118 @@ use GraphAware\Neo4j\OGM\Metadata\RelationshipEntityMetadata;
 use GraphAware\Neo4j\OGM\Metadata\RelationshipMetadata;
 use GraphAware\Neo4j\OGM\Metadata\ResultField;
 use ReflectionClass;
+use function get_parent_class;
+use function sprintf;
 
 class AnnotationGraphEntityMetadataFactory implements GraphEntityMetadataFactoryInterface
 {
-    private NodeAnnotationMetadataFactory $nodeAnnotationMetadataFactory;
+	private NodeAnnotationMetadataFactory $nodeAnnotationMetadataFactory;
 
-    private PropertyAnnotationMetadataFactory $propertyAnnotationMetadataFactory;
+	private PropertyAnnotationMetadataFactory $propertyAnnotationMetadataFactory;
 
-    private IdAnnotationMetadataFactory $IdAnnotationMetadataFactory;
+	private IdAnnotationMetadataFactory $IdAnnotationMetadataFactory;
 
-    private RelationshipEntityMetadataFactory $relationshipEntityMetadataFactory;
+	private RelationshipEntityMetadataFactory $relationshipEntityMetadataFactory;
 
-    public function __construct(private Reader $reader)
-    {
-        $this->nodeAnnotationMetadataFactory = new NodeAnnotationMetadataFactory($reader);
-        $this->propertyAnnotationMetadataFactory = new PropertyAnnotationMetadataFactory($reader);
-        $this->IdAnnotationMetadataFactory = new IdAnnotationMetadataFactory($reader);
-        $this->relationshipEntityMetadataFactory = new RelationshipEntityMetadataFactory($reader);
-    }
+	public function __construct(private Reader $reader)
+	{
+		$this->nodeAnnotationMetadataFactory = new NodeAnnotationMetadataFactory($reader);
+		$this->propertyAnnotationMetadataFactory = new PropertyAnnotationMetadataFactory($reader);
+		$this->IdAnnotationMetadataFactory = new IdAnnotationMetadataFactory($reader);
+		$this->relationshipEntityMetadataFactory = new RelationshipEntityMetadataFactory($reader);
+	}
 
-    public function create($className): RelationshipEntityMetadata|NodeEntityMetadata
-    {
-        $reflectionClass = new ReflectionClass($className);
-        $entityIdMetadata = null;
-        $propertiesMetadata = [];
-        $relationshipsMetadata = [];
+	public function create($className) : RelationshipEntityMetadata|NodeEntityMetadata
+	{
+		$reflectionClass = new ReflectionClass($className);
+		$entityIdMetadata = null;
+		$propertiesMetadata = [];
+		$relationshipsMetadata = [];
 
-        if (null !== $annotation = $this->reader->getClassAnnotation($reflectionClass, Node::class)) {
-            $annotationMetadata = $this->nodeAnnotationMetadataFactory->create($className);
-            foreach ($reflectionClass->getProperties() as $reflectionProperty) {
-                $propertyAnnotationMetadata = $this->propertyAnnotationMetadataFactory->create($className, $reflectionProperty->getName());
-                $converter = $this->reader->getPropertyAnnotation($reflectionProperty, Convert::class);
-                if (null !== $propertyAnnotationMetadata) {
-                    $propertiesMetadata[] = new EntityPropertyMetadata($reflectionProperty->getName(), $reflectionProperty, $propertyAnnotationMetadata, $converter);
-                } else {
-                    $idA = $this->IdAnnotationMetadataFactory->create($className, $reflectionProperty);
-                    if (null !== $idA) {
-                        $entityIdMetadata = new EntityIdMetadata($reflectionProperty->getName(), $reflectionProperty);
-                    }
-                }
-                foreach ($this->reader->getPropertyAnnotations($reflectionProperty) as $annot) {
-                    if ($annot instanceof Label) {
-                        $propertiesMetadata[] = new LabeledPropertyMetadata($reflectionProperty->getName(), $reflectionProperty, $annot);
-                    }
+		if (null !== $annotation = $this->reader->getClassAnnotation($reflectionClass, Node::class)) {
+			$annotationMetadata = $this->nodeAnnotationMetadataFactory->create($className);
+			foreach ($reflectionClass->getProperties() as $reflectionProperty) {
+				$propertyAnnotationMetadata = $this->propertyAnnotationMetadataFactory->create($className, $reflectionProperty->getName());
+				$converter = $this->reader->getPropertyAnnotation($reflectionProperty, Convert::class);
+				if (null !== $propertyAnnotationMetadata) {
+					$propertiesMetadata[] = new EntityPropertyMetadata($reflectionProperty->getName(), $reflectionProperty, $propertyAnnotationMetadata, $converter);
+				} else {
+					$idA = $this->IdAnnotationMetadataFactory->create($className, $reflectionProperty);
+					if (null !== $idA) {
+						$entityIdMetadata = new EntityIdMetadata($reflectionProperty->getName(), $reflectionProperty);
+					}
+				}
+				foreach ($this->reader->getPropertyAnnotations($reflectionProperty) as $annot) {
+					if ($annot instanceof Label) {
+						$propertiesMetadata[] = new LabeledPropertyMetadata($reflectionProperty->getName(), $reflectionProperty, $annot);
+					}
 
-                    if ($annot instanceof Relationship) {
-                        $isLazy = null !== $this->reader->getPropertyAnnotation($reflectionProperty, Lazy::class);
-                        $isFetch = null !== $this->reader->getPropertyAnnotation($reflectionProperty, Fetch::class);
-                        $orderBy = $this->reader->getPropertyAnnotation($reflectionProperty, OrderBy::class);
-                        $relationshipsMetadata[] = new RelationshipMetadata($className, $reflectionProperty, $annot, $isLazy, $isFetch, $orderBy);
-                    }
-                }
-            }
+					if ($annot instanceof Relationship) {
+						$isLazy = null !== $this->reader->getPropertyAnnotation($reflectionProperty, Lazy::class);
+						$isFetch = null !== $this->reader->getPropertyAnnotation($reflectionProperty, Fetch::class);
+						$orderBy = $this->reader->getPropertyAnnotation($reflectionProperty, OrderBy::class);
+						$relationshipsMetadata[] = new RelationshipMetadata($className, $reflectionProperty, $annot, $isLazy, $isFetch, $orderBy);
+					}
+				}
+			}
 
-            if ($entityIdMetadata === null) {
-                throw new MappingException(sprintf('The class "%s" must have ID mapping defined', $className));
-            }
+			if ($entityIdMetadata === null) {
+				throw new MappingException(sprintf('The class "%s" must have ID mapping defined', $className));
+			}
 
-            return new NodeEntityMetadata($className, $reflectionClass, $annotationMetadata, $entityIdMetadata, $propertiesMetadata, $relationshipsMetadata);
-        } elseif (null !== $annotation = $this->reader->getClassAnnotation($reflectionClass, RelationshipEntity::class)) {
-            return $this->relationshipEntityMetadataFactory->create($className);
-        }
+			return new NodeEntityMetadata($className, $reflectionClass, $annotationMetadata, $entityIdMetadata, $propertiesMetadata, $relationshipsMetadata);
+		} elseif (null !== $annotation = $this->reader->getClassAnnotation($reflectionClass, RelationshipEntity::class)) {
+			return $this->relationshipEntityMetadataFactory->create($className);
+		}
 
-        if (false !== get_parent_class($className)) {
-            return $this->create(get_parent_class($className));
-        }
+		if (false !== get_parent_class($className)) {
+			return $this->create(get_parent_class($className));
+		}
 
-        throw new MappingException(sprintf('The class "%s" is not a valid OGM entity', $className));
-    }
+		throw new MappingException(sprintf('The class "%s" is not a valid OGM entity', $className));
+	}
 
-    public function supports($className): bool
-    {
-        $reflectionClass = new ReflectionClass($className);
+	public function supports($className) : bool
+	{
+		$reflectionClass = new ReflectionClass($className);
 
-        if (
-            $this->reader->getClassAnnotation($reflectionClass, Node::class) === null
-            && get_parent_class($className) !== false
-        ) {
-            return $this->supports(get_parent_class($className));
-        }
+		if (
+			$this->reader->getClassAnnotation($reflectionClass, Node::class) === null
+			&& get_parent_class($className) !== false
+		) {
+			return $this->supports(get_parent_class($className));
+		}
 
-        return true;
-    }
+		return true;
+	}
 
-    public function supportsQueryResult($className): bool
-    {
-        $reflClass = new ReflectionClass($className);
-        $classAnnotations = $this->reader->getClassAnnotations($reflClass);
+	public function supportsQueryResult($className) : bool
+	{
+		$reflClass = new ReflectionClass($className);
+		$classAnnotations = $this->reader->getClassAnnotations($reflClass);
 
-        foreach ($classAnnotations as $classAnnotation) {
-            if ($classAnnotation instanceof QueryResult) {
-                return true;
-            }
-        }
+		foreach ($classAnnotations as $classAnnotation) {
+			if ($classAnnotation instanceof QueryResult) {
+				return true;
+			}
+		}
 
-        return false;
-    }
+		return false;
+	}
 
-    public function createQueryResultMapper($className): QueryResultMapper
-    {
-        $reflClass = new ReflectionClass($className);
-        $queryResultMapper = new QueryResultMapper($className);
+	public function createQueryResultMapper($className) : QueryResultMapper
+	{
+		$reflClass = new ReflectionClass($className);
+		$queryResultMapper = new QueryResultMapper($className);
 
-        foreach ($reflClass->getProperties() as $property) {
-            foreach ($this->reader->getPropertyAnnotations($property) as $propertyAnnotation) {
-                if ($propertyAnnotation instanceof MappedResult) {
-                    $queryResultMapper->addField(new ResultField($property->getName(), $propertyAnnotation->type, $propertyAnnotation->target));
-                }
-            }
-        }
+		foreach ($reflClass->getProperties() as $property) {
+			foreach ($this->reader->getPropertyAnnotations($property) as $propertyAnnotation) {
+				if ($propertyAnnotation instanceof MappedResult) {
+					$queryResultMapper->addField(new ResultField($property->getName(), $propertyAnnotation->type, $propertyAnnotation->target));
+				}
+			}
+		}
 
-        return $queryResultMapper;
-    }
+		return $queryResultMapper;
+	}
 }

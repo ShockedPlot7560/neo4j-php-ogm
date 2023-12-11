@@ -9,75 +9,86 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace GraphAware\Neo4j\OGM\Tests\Integration;
 
 use GraphAware\Neo4j\OGM\EntityManager;
 use PHPUnit\Framework\TestCase;
+use function getenv;
+use function sprintf;
 
 class IntegrationTestCase extends TestCase
 {
-    protected $calls = [];
+	protected $calls = [];
 
-    protected $client;
+	protected $client;
 
-    /**
-     * @var EntityManager
-     */
-    protected $em;
+	/** @var EntityManager */
+	protected $em;
 
-    public function setUp(): void
-    {
-        $this->createEntityManager();
-        $this->client = $this->em->getDatabaseDriver();
-    }
+	public function setUp() : void
+	{
+		$this->createEntityManager();
+		$this->client = $this->em->getDatabaseDriver();
+	}
 
-    public function clearDb()
-    {
-        $this->client->run('MATCH (n) DETACH DELETE n');
-    }
+	public function clearDb()
+	{
+		$this->client->run('MATCH (n) DETACH DELETE n');
+	}
 
-    public function resetEm()
-    {
-        $this->em = null;
-        $this->createEntityManager();
-    }
+	public function resetEm()
+	{
+		$this->em = null;
+		$this->createEntityManager();
+	}
 
-    protected function persist(...$objects)
-    {
-        foreach ($objects as $object) {
-            $this->em->persist($object);
-        }
-    }
+	protected function persist(...$objects)
+	{
+		foreach ($objects as $object) {
+			$this->em->persist($object);
+		}
+	}
 
-    protected function assertGraphNotExist($q)
-    {
-        $this->assertTrue($this->checkGraph($q)->count() < 1);
-    }
+	protected function assertGraphNotExist($q)
+	{
+		$this->assertTrue($this->checkGraph($q)->count() < 1);
+	}
 
-    protected function assertGraphExist($q)
-    {
-        $this->assertTrue($this->checkGraph($q)->count() > 0);
-    }
+	protected function assertGraphExist($q)
+	{
+		$this->assertTrue($this->checkGraph($q)->count() > 0);
+	}
 
-    protected function checkGraph($q)
-    {
-        return $this->client->run('MATCH '.$q.' RETURN *');
-    }
+	protected function checkGraph($q)
+	{
+		return $this->client->run('MATCH ' . $q . ' RETURN *');
+	}
 
-    protected function assertNodesCount($count)
-    {
-        $this->assertSame($count, $this->client->run('MATCH (n) RETURN count(n) AS c')->first()->get('c'));
-    }
+	protected function assertNodesCount($count)
+	{
+		$this->assertSame($count, $this->client->run('MATCH (n) RETURN count(n) AS c')->first()->get('c'));
+	}
 
-    protected function assertRelationshipsCount($count)
-    {
-        $this->assertSame($count, $this->client->run('MATCH (n)-[r]->(o) RETURN count(r) AS c')->first()->get('c'));
-    }
+	protected function assertRelationshipsCount($count)
+	{
+		$this->assertSame($count, $this->client->run('MATCH (n)-[r]->(o) RETURN count(r) AS c')->first()->get('c'));
+	}
 
-    protected function playMovies()
-    {
-        $this->clearDb();
-        $query = 'CREATE (TheMatrix:Movie {title:\'The Matrix\', released:1999, tagline:\'Welcome to the Real World\'})
+	protected function playMovies()
+	{
+		$this->clearDb();
+		$query = 'CREATE (TheMatrix:Movie {title:\'The Matrix\', released:1999, tagline:\'Welcome to the Real World\'})
 CREATE (Keanu:Person {name:\'Keanu Reeves\', born:1964})
 CREATE (Carrie:Person {name:\'Carrie-Anne Moss\', born:1967})
 CREATE (Laurence:Person {name:\'Laurence Fishburne\', born:1961})
@@ -582,23 +593,23 @@ WITH TomH as a
 MATCH (a)-[:ACTED_IN]->(m)<-[:DIRECTED]-(d) RETURN a,m,d LIMIT 10
 
 ;';
-        $this->client->run($query);
-    }
+		$this->client->run($query);
+	}
 
-    private function createEntityManager()
-    {
-        $uri = isset($_ENV['NEO4J_USER'])
-            ? sprintf(
-                '%s://%s:%s@%s:%s',
-                getenv('NEO4J_SCHEMA'),
-                getenv('NEO4J_USER'),
-                getenv('NEO4J_PASSWORD'),
-                getenv('NEO4J_HOST'),
-                getenv('NEO4J_PORT')
-            ) : 'http://localhost:7474';
-        $this->em = EntityManager::create(
-            $uri,
-            __DIR__.'/../../_var/cache'
-        );
-    }
+	private function createEntityManager()
+	{
+		$uri = isset($_ENV['NEO4J_USER'])
+			? sprintf(
+				'%s://%s:%s@%s:%s',
+				getenv('NEO4J_SCHEMA'),
+				getenv('NEO4J_USER'),
+				getenv('NEO4J_PASSWORD'),
+				getenv('NEO4J_HOST'),
+				getenv('NEO4J_PORT')
+			) : 'http://localhost:7474';
+		$this->em = EntityManager::create(
+			$uri,
+			__DIR__ . '/../../_var/cache'
+		);
+	}
 }

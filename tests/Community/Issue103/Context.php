@@ -1,8 +1,18 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+declare(strict_types=1);
+
 namespace GraphAware\Neo4j\OGM\Tests\Community\Issue103;
 
-use Doctrine\Common\Collections\ArrayCollection;
 use GraphAware\Neo4j\OGM\Annotations as OGM;
 
 /**
@@ -10,63 +20,48 @@ use GraphAware\Neo4j\OGM\Annotations as OGM;
  */
 class Context
 {
-    /**
-     * @OGM\GraphId()
-     * @var int
-     */
-    protected int $id;
+	/**
+	 * @OGM\GraphId()
+	 */
+	protected int $id;
 
-    /**
-     * @OGM\Property(type="string")
-     * @var string
-     */
-    protected string $name;
+	/**
+	 * @OGM\Property(type="string")
+	 */
+	protected string $name;
 
-    /**
-     * @OGM\Relationship(type="HAS_CONTEXT", direction="INCOMING", targetEntity="Entity", collection=false, mappedBy="contexts")
-     * @var Entity
-     */
-    protected Entity $entity;
+	/**
+	 * @OGM\Relationship(type="HAS_CONTEXT", direction="INCOMING", targetEntity="Entity", collection=false, mappedBy="contexts")
+	 */
+	protected Entity $entity;
 
-    /**
-     * @param string $name
-     */
-    public function __construct(string $name)
-    {
-        $this->name = $name;
-    }
+	public function __construct(string $name)
+	{
+		$this->name = $name;
+	}
 
-    /**
-     * @return int
-     */
-    public function getId(): int
-    {
-        return $this->id;
-    }
+	public function getId() : int
+	{
+		return $this->id;
+	}
 
-    /**
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
+	public function getName() : string
+	{
+		return $this->name;
+	}
 
-    /**
-     * @param string $name
-     */
-    public function setName(string $name): void
-    {
-        $this->name = $name;
-    }
+	public function setName(string $name) : void
+	{
+		$this->name = $name;
+	}
 
-    public function getEntity(): Entity
-    {
-        return $this->entity;
-    }
+	public function getEntity() : Entity
+	{
+		return $this->entity;
+	}
 
-    public function setEntity(Entity $entity): void
-    {
-        $this->entity = $entity;
-    }
+	public function setEntity(Entity $entity) : void
+	{
+		$this->entity = $entity;
+	}
 }

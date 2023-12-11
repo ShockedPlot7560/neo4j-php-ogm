@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 declare(strict_types=1);
 
 /*
@@ -13,76 +22,96 @@ declare(strict_types=1);
 
 namespace GraphAware\Neo4j\OGM\Proxy;
 
-use Laudis\Neo4j\Types\Node;
 use GraphAware\Neo4j\OGM\EntityManager;
 use GraphAware\Neo4j\OGM\Metadata\NodeEntityMetadata;
 use GraphAware\Neo4j\OGM\Metadata\RelationshipMetadata;
+use Laudis\Neo4j\Types\Node;
 use ReflectionClass;
 use ReflectionNamedType;
+use function array_key_exists;
+use function array_reduce;
+use function class_exists;
+use function fclose;
+use function file_put_contents;
+use function flock;
+use function fopen;
+use function implode;
+use function in_array;
+use function is_dir;
+use function mkdir;
+use function sprintf;
+use function str_replace;
+use function strlen;
+use function ucfirst;
+use function unserialize;
+use const LOCK_EX;
+use const LOCK_SH;
+use const LOCK_UN;
+use const PHP_VERSION_ID;
 
 class ProxyFactory
 {
-    protected ?string $proxyDir;
+	protected ?string $proxyDir;
 
-    public function __construct(protected EntityManager $em, protected NodeEntityMetadata $classMetadata)
-    {
-        $this->proxyDir = $this->em->getProxyDirectory();
-    }
+	public function __construct(protected EntityManager $em, protected NodeEntityMetadata $classMetadata)
+	{
+		$this->proxyDir = $this->em->getProxyDirectory();
+	}
 
-    public function fromNode(Node $node, array $mappedByProperties = [])
-    {
-        $object = $this->createProxy();
-        $object->__setNode($node);
-        $initializers = [];
-        foreach ($this->classMetadata->getSimpleRelationships() as $relationship) {
-            if (!in_array($relationship->getPropertyName(), $mappedByProperties, true)) {
-                if (!$relationship->isCollection()) {
-                    $initializer = $this->getInitializerFor($relationship);
-                    $initializers[$relationship->getPropertyName()] = $initializer;
-                } else {
-                    $mappedByProperties[] = $relationship->getPropertyName();
-                }
-            }
-        }
+	public function fromNode(Node $node, array $mappedByProperties = [])
+	{
+		$object = $this->createProxy();
+		$object->__setNode($node);
+		$initializers = [];
+		foreach ($this->classMetadata->getSimpleRelationships() as $relationship) {
+			if (!in_array($relationship->getPropertyName(), $mappedByProperties, true)) {
+				if (!$relationship->isCollection()) {
+					$initializer = $this->getInitializerFor($relationship);
+					$initializers[$relationship->getPropertyName()] = $initializer;
+				} else {
+					$mappedByProperties[] = $relationship->getPropertyName();
+				}
+			}
+		}
 
-        foreach ($this->classMetadata->getRelationshipEntities() as $relationshipEntity) {
-            if (!$relationshipEntity->isCollection()) {
-                if (!in_array($relationshipEntity->getPropertyName(), $mappedByProperties, true)) {
-                    $initializer = new RelationshipEntityInitializer($this->em, $relationshipEntity, $this->classMetadata);
-                    $initializers[$relationshipEntity->getPropertyName()] = $initializer;
-                }
-            } else {
-                if (!in_array($relationshipEntity->getPropertyName(), $mappedByProperties, true)) {
-                    $mappedByProperties[] = $relationshipEntity->getPropertyName();
-                }
-            }
-        }
-        $object->__setInitializers($initializers);
-        foreach ($mappedByProperties as $mappedByProperty) {
-            $object->__setInitialized($mappedByProperty);
-        }
+		foreach ($this->classMetadata->getRelationshipEntities() as $relationshipEntity) {
+			if (!$relationshipEntity->isCollection()) {
+				if (!in_array($relationshipEntity->getPropertyName(), $mappedByProperties, true)) {
+					$initializer = new RelationshipEntityInitializer($this->em, $relationshipEntity, $this->classMetadata);
+					$initializers[$relationshipEntity->getPropertyName()] = $initializer;
+				}
+			} else {
+				if (!in_array($relationshipEntity->getPropertyName(), $mappedByProperties, true)) {
+					$mappedByProperties[] = $relationshipEntity->getPropertyName();
+				}
+			}
+		}
+		$object->__setInitializers($initializers);
+		foreach ($mappedByProperties as $mappedByProperty) {
+			$object->__setInitialized($mappedByProperty);
+		}
 
-        foreach ($this->classMetadata->getRelationships() as $relationship) {
-            if ($relationship->isCollection()) {
-                $initializer = $relationship->isRelationshipEntity()
-                    ? new RelationshipEntityCollectionInitializer($this->em, $relationship, $this->classMetadata)
-                    : $this->getInitializerFor($relationship);
-                $lc = new LazyCollection($initializer, $object, $relationship);
-                $relationship->setValue($object, $lc);
-            }
-        }
+		foreach ($this->classMetadata->getRelationships() as $relationship) {
+			if ($relationship->isCollection()) {
+				$initializer = $relationship->isRelationshipEntity()
+					? new RelationshipEntityCollectionInitializer($this->em, $relationship, $this->classMetadata)
+					: $this->getInitializerFor($relationship);
+				$lc = new LazyCollection($initializer, $object, $relationship);
+				$relationship->setValue($object, $lc);
+			}
+		}
 
-        return $object;
-    }
+		return $object;
+	}
 
-    protected function createProxy()
-    {
-        $class = $this->classMetadata->getClassName();
-        $proxyClass = $this->getProxyClass();
-        $proxyFile = $this->proxyDir . '/' . $proxyClass . '.php';
-        $methodProxies = $this->getMethodProxies();
+	protected function createProxy()
+	{
+		$class = $this->classMetadata->getClassName();
+		$proxyClass = $this->getProxyClass();
+		$proxyFile = $this->proxyDir . '/' . $proxyClass . '.php';
+		$methodProxies = $this->getMethodProxies();
 
-        $content = <<<PROXY
+		$content = <<<PROXY
 <?php
 
 use GraphAware\\Neo4j\\OGM\\Proxy\\EntityProxy;
@@ -122,60 +151,60 @@ class $proxyClass extends $class implements EntityProxy
 
 PROXY;
 
-        $this->checkProxyDirectory();
-        file_put_contents($proxyFile, $content, LOCK_EX);
+		$this->checkProxyDirectory();
+		file_put_contents($proxyFile, $content, LOCK_EX);
 
-        if (!class_exists($proxyClass)) {
-            // using locks to avoid reading a partially written file
-            $fo = fopen($proxyFile, 'r');
-            flock($fo, LOCK_SH);
-            require $proxyFile;
-            flock($fo, LOCK_UN);
-            fclose($fo);
-        }
+		if (!class_exists($proxyClass)) {
+			// using locks to avoid reading a partially written file
+			$fo = fopen($proxyFile, 'r');
+			flock($fo, LOCK_SH);
+			require $proxyFile;
+			flock($fo, LOCK_UN);
+			fclose($fo);
+		}
 
-        return $this->newProxyInstance($proxyClass);
-    }
+		return $this->newProxyInstance($proxyClass);
+	}
 
-    protected function getMethodProxies()
-    {
-        $proxies = '';
-        foreach ($this->classMetadata->getRelationships() as $relationship) {
-            if ($relationship->isFetch()) {
-                continue;
-            }
-            $getter = 'get' . ucfirst($relationship->getPropertyName()) . '()';
-            $returnStr = $getter;
+	protected function getMethodProxies()
+	{
+		$proxies = '';
+		foreach ($this->classMetadata->getRelationships() as $relationship) {
+			if ($relationship->isFetch()) {
+				continue;
+			}
+			$getter = 'get' . ucfirst($relationship->getPropertyName()) . '()';
+			$returnStr = $getter;
 
-            if (PHP_VERSION_ID > 70000) {
-                $reflClass = new ReflectionClass($this->classMetadata->getClassName());
-                $g = 'get' . ucfirst($relationship->getPropertyName());
-                if ($reflClass->hasMethod($g)) {
-                    $reflMethod = $reflClass->getMethod($g);
-                    if ($reflMethod->hasReturnType()) {
-                        $rt = $reflMethod->getReturnType();
-                        $getter .= ': ' . ($rt->allowsNull() ? ' ?' : '')
-                            . ($rt instanceof ReflectionNamedType
-                                ? $rt->getName()
-                                // for PHP > 8.0
-                                : implode(
-                                    "|",
-                                    array_reduce(
-                                        $rt->getTypes(),
-                                        function (array $mixedTypes, ReflectionNamedType $type): array {
-                                            $mixedTypes[] = $type->getName();
-                                            return $mixedTypes;
-                                        },
-                                        []
-                                    )
-                                )
-                            );
-                    }
-                }
-            }
+			if (PHP_VERSION_ID > 70000) {
+				$reflClass = new ReflectionClass($this->classMetadata->getClassName());
+				$g = 'get' . ucfirst($relationship->getPropertyName());
+				if ($reflClass->hasMethod($g)) {
+					$reflMethod = $reflClass->getMethod($g);
+					if ($reflMethod->hasReturnType()) {
+						$rt = $reflMethod->getReturnType();
+						$getter .= ': ' . ($rt->allowsNull() ? ' ?' : '')
+							. ($rt instanceof ReflectionNamedType
+								? $rt->getName()
+								// for PHP > 8.0
+								: implode(
+									"|",
+									array_reduce(
+										$rt->getTypes(),
+										function (array $mixedTypes, ReflectionNamedType $type) : array {
+											$mixedTypes[] = $type->getName();
+											return $mixedTypes;
+										},
+										[]
+									)
+								)
+							);
+					}
+				}
+			}
 
-            $propertyName = $relationship->getPropertyName();
-            $proxies .= <<<METHOD
+			$propertyName = $relationship->getPropertyName();
+			$proxies .= <<<METHOD
 public function $getter
 {
     self::__initializeProperty('$propertyName');
@@ -183,50 +212,50 @@ public function $getter
 }
 
 METHOD;
-        }
+		}
 
-        return $proxies;
-    }
+		return $proxies;
+	}
 
-    protected function getProxyClass(): string
-    {
-        return 'neo4j_ogm_proxy_' . str_replace('\\', '_', $this->classMetadata->getClassName());
-    }
+	protected function getProxyClass() : string
+	{
+		return 'neo4j_ogm_proxy_' . str_replace('\\', '_', $this->classMetadata->getClassName());
+	}
 
-    private function getInitializerFor(
-        RelationshipMetadata $relationship
-    ): SingleNodeInitializer | NodeCollectionInitializer {
-        if (!$relationship->isCollection()) {
-            $initializer = new SingleNodeInitializer($this->em, $relationship, $this->classMetadata);
-        } else {
-            $initializer = new NodeCollectionInitializer($this->em, $relationship, $this->classMetadata);
-        }
+	private function getInitializerFor(
+		RelationshipMetadata $relationship
+	) : SingleNodeInitializer | NodeCollectionInitializer {
+		if (!$relationship->isCollection()) {
+			$initializer = new SingleNodeInitializer($this->em, $relationship, $this->classMetadata);
+		} else {
+			$initializer = new NodeCollectionInitializer($this->em, $relationship, $this->classMetadata);
+		}
 
-        return $initializer;
-    }
+		return $initializer;
+	}
 
-    private function newProxyInstance($proxyClass)
-    {
-        static $prototypes = [];
+	private function newProxyInstance($proxyClass)
+	{
+		static $prototypes = [];
 
-        if (!array_key_exists($proxyClass, $prototypes)) {
-            $rc = @unserialize(sprintf('C:%d:"%s":0:{}', strlen($proxyClass), $proxyClass));
+		if (!array_key_exists($proxyClass, $prototypes)) {
+			$rc = @unserialize(sprintf('C:%d:"%s":0:{}', strlen($proxyClass), $proxyClass));
 
-            if (false === $rc || $rc instanceof \__PHP_Incomplete_Class) {
-                $rc = new ReflectionClass($proxyClass);
-                return $rc->newInstanceWithoutConstructor();
-            }
+			if (false === $rc || $rc instanceof \__PHP_Incomplete_Class) {
+				$rc = new ReflectionClass($proxyClass);
+				return $rc->newInstanceWithoutConstructor();
+			}
 
-            $prototypes[$proxyClass] = $rc;
-        }
+			$prototypes[$proxyClass] = $rc;
+		}
 
-        return clone $prototypes[$proxyClass];
-    }
+		return clone $prototypes[$proxyClass];
+	}
 
-    private function checkProxyDirectory()
-    {
-        if (!is_dir($this->em->getProxyDirectory())) {
-            @mkdir($this->em->getProxyDirectory());
-        }
-    }
+	private function checkProxyDirectory()
+	{
+		if (!is_dir($this->em->getProxyDirectory())) {
+			@mkdir($this->em->getProxyDirectory());
+		}
+	}
 }

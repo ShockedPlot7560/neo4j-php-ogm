@@ -9,6 +9,17 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace GraphAware\Neo4j\OGM\Tests\Integration\Community;
 
 use GraphAware\Neo4j\OGM\Tests\Integration\IntegrationTestCase;
@@ -24,50 +35,50 @@ use GraphAware\Neo4j\OGM\UnitOfWork;
  */
 class GithubIssue49Test extends IntegrationTestCase
 {
-    /**
-     * When the items are new we want to make sure to cascade persist to all relations.
-     */
-    public function testCascadePersistOnCreate()
-    {
-        // Clear database
-        $this->clearDb();
+	/**
+	 * When the items are new we want to make sure to cascade persist to all relations.
+	 */
+	public function testCascadePersistOnCreate()
+	{
+		// Clear database
+		$this->clearDb();
 
-        $person = new Person('Mike');
-        $car = new Car('Bugatti', $person);
-        $person->setCar($car);
-        $car->setModelNumber(new ModelNumber('Foobar'));
-        $this->em->persist($person);
-        $this->em->flush();
+		$person = new Person('Mike');
+		$car = new Car('Bugatti', $person);
+		$person->setCar($car);
+		$car->setModelNumber(new ModelNumber('Foobar'));
+		$this->em->persist($person);
+		$this->em->flush();
 
-        $result = $this->client->run('MATCH (c:Car {model:"Bugatti"})-[:HAS_MODEL_NUMBER]->(m:ModelNumber {number:"Foobar"}) RETURN m, c');
-        $this->assertSame(1, $result->count());
-    }
+		$result = $this->client->run('MATCH (c:Car {model:"Bugatti"})-[:HAS_MODEL_NUMBER]->(m:ModelNumber {number:"Foobar"}) RETURN m, c');
+		$this->assertSame(1, $result->count());
+	}
 
-    /**
-     * When we do a simple update on one entity we do NOT want to fetch related entities from the
-     * database and persist them as well. Unless they are already in memory.
-     */
-    public function testNoCascadeOnExistingItems()
-    {
-        // Clear database
-        $this->clearDb();
+	/**
+	 * When we do a simple update on one entity we do NOT want to fetch related entities from the
+	 * database and persist them as well. Unless they are already in memory.
+	 */
+	public function testNoCascadeOnExistingItems()
+	{
+		// Clear database
+		$this->clearDb();
 
-        $person = new Person('Mike');
-        $car = new Car('Bugatti', $person);
-        $person->setCar($car);
-        $car->setModelNumber(new ModelNumber('Foobar'));
-        $this->em->persist($person);
-        $this->em->flush();
+		$person = new Person('Mike');
+		$car = new Car('Bugatti', $person);
+		$person->setCar($car);
+		$car->setModelNumber(new ModelNumber('Foobar'));
+		$this->em->persist($person);
+		$this->em->flush();
 
-        $this->resetEm();
-        $persons = $this->em->getRepository(Person::class)->findBy(['name' => 'Mike']);
-        /** @var Person $person */
-        $person = $persons[0];
-        $person->setName('Tom');
+		$this->resetEm();
+		$persons = $this->em->getRepository(Person::class)->findBy(['name' => 'Mike']);
+		/** @var Person $person */
+		$person = $persons[0];
+		$person->setName('Tom');
 
-        $uow = new UnitOfWork($this->em);
-        $visited = [];
-        $uow->doPersist($person, $visited);
-        $this->assertCount(1, $visited);
-    }
+		$uow = new UnitOfWork($this->em);
+		$visited = [];
+		$uow->doPersist($person, $visited);
+		$this->assertCount(1, $visited);
+	}
 }

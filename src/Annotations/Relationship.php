@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 declare(strict_types=1);
 
 /*
@@ -19,35 +28,25 @@ namespace GraphAware\Neo4j\OGM\Annotations;
  */
 final class Relationship
 {
-    /**
-     * @var string
-     */
-    public $targetEntity;
+	/** @var string */
+	public $targetEntity;
 
-    /**
-     * @var string
-     */
-    public $relationshipEntity;
+	/** @var string */
+	public $relationshipEntity;
 
-    /**
-     * @var string
-     */
-    public $type;
+	/** @var string */
+	public $type;
 
-    /**
-     * @var string
-     *
-     * @Enum({"OUTGOING","INCOMING","BOTH"})
-     */
-    public $direction;
+	/**
+	 * @var string
+	 *
+	 * @Enum({"OUTGOING","INCOMING","BOTH"})
+	 */
+	public $direction;
 
-    /**
-     * @var string
-     */
-    public $mappedBy;
+	/** @var string */
+	public $mappedBy;
 
-    /**
-     * @var bool
-     */
-    public $collection;
+	/** @var bool */
+	public $collection;
 }

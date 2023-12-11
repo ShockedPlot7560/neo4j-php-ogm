@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 declare(strict_types=1);
 
 /*
@@ -17,7 +26,7 @@ use GraphAware\Neo4j\OGM\Annotations\Entity;
 
 final class ClassMetadata
 {
-    public function __construct(protected Entity $entityAnnotation)
-    {
-    }
+	public function __construct(protected Entity $entityAnnotation)
+	{
+	}
 }

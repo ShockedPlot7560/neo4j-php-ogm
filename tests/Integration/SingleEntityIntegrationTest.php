@@ -9,6 +9,17 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace GraphAware\Neo4j\OGM\Tests\Integration;
 
 use GraphAware\Neo4j\OGM\Tests\Integration\Models\SingleEntity\User;
@@ -18,65 +29,65 @@ use GraphAware\Neo4j\OGM\Tests\Integration\Models\SingleEntity\User;
  */
 class SingleEntityIntegrationTest extends IntegrationTestCase
 {
-    public function testSingleUserEntityIsCreated()
-    {
-        $this->clearDb();
-        $user = new User('jexp');
-        $this->em->persist($user);
-        $this->em->flush();
+	public function testSingleUserEntityIsCreated()
+	{
+		$this->clearDb();
+		$user = new User('jexp');
+		$this->em->persist($user);
+		$this->em->flush();
 
-        $result = $this->client->run('MATCH (n:User {login : $login }) RETURN n', ['login' => 'jexp']);
-        $this->assertSame(1, $result->count());
-        $this->assertSame('jexp', $result->first()->get('n')->getProperty('login'));
-    }
+		$result = $this->client->run('MATCH (n:User {login : $login }) RETURN n', ['login' => 'jexp']);
+		$this->assertSame(1, $result->count());
+		$this->assertSame('jexp', $result->first()->get('n')->getProperty('login'));
+	}
 
-    public function testSingleEntityFindAll()
-    {
-        $this->clearDb();
-        $user = new User('jexp');
-        $this->em->persist($user);
-        $this->em->flush();
-        $this->em->clear();
+	public function testSingleEntityFindAll()
+	{
+		$this->clearDb();
+		$user = new User('jexp');
+		$this->em->persist($user);
+		$this->em->flush();
+		$this->em->clear();
 
-        $entities = $this->em->getRepository(User::class)->findAll();
-        $this->assertCount(1, $entities);
-    }
+		$entities = $this->em->getRepository(User::class)->findAll();
+		$this->assertCount(1, $entities);
+	}
 
-    public function testSingleEntityCanBeUpdated()
-    {
-        $this->clearDb();
-        $user = new User('jexp');
-        $this->em->persist($user);
-        $this->em->flush();
-        $this->em->clear();
+	public function testSingleEntityCanBeUpdated()
+	{
+		$this->clearDb();
+		$user = new User('jexp');
+		$this->em->persist($user);
+		$this->em->flush();
+		$this->em->clear();
 
-        $entities = $this->em->getRepository(User::class)->findAll();
-        $this->assertCount(1, $entities);
+		$entities = $this->em->getRepository(User::class)->findAll();
+		$this->assertCount(1, $entities);
 
-        /** @var User $jexp */
-        $jexp = $entities[0];
-        $jexp->setLogin('jexp2');
-        $this->em->flush();
+		/** @var User $jexp */
+		$jexp = $entities[0];
+		$jexp->setLogin('jexp2');
+		$this->em->flush();
 
-        $result = $this->client->run('MATCH (n:User) WHERE n.login = "jexp2" RETURN n');
-        $this->assertSame(1, $result->count());
-    }
+		$result = $this->client->run('MATCH (n:User) WHERE n.login = "jexp2" RETURN n');
+		$this->assertSame(1, $result->count());
+	}
 
-    public function testFindOneByIdShouldNotReturnIfNodeDoesntMatchLabel()
-    {
-        $this->clearDb();
-        $id = $this->client->run('CREATE (n:NonUser {login:"me"}) RETURN id(n) AS id')->first()->get('id');
+	public function testFindOneByIdShouldNotReturnIfNodeDoesntMatchLabel()
+	{
+		$this->clearDb();
+		$id = $this->client->run('CREATE (n:NonUser {login:"me"}) RETURN id(n) AS id')->first()->get('id');
 
-        $user = $this->em->getRepository(User::class)->findOneById($id);
-        $this->assertNull($user);
-    }
+		$user = $this->em->getRepository(User::class)->findOneById($id);
+		$this->assertNull($user);
+	}
 
-    public function testFindOneByIdReturnEntityWhenLabelMatch()
-    {
-        $this->clearDb();
-        $id = $this->client->run('CREATE (n:User {login:"me"}) RETURN id(n) AS id')->first()->get('id');
+	public function testFindOneByIdReturnEntityWhenLabelMatch()
+	{
+		$this->clearDb();
+		$id = $this->client->run('CREATE (n:User {login:"me"}) RETURN id(n) AS id')->first()->get('id');
 
-        $user = $this->em->getRepository(User::class)->findOneById($id);
-        $this->assertInstanceOf(User::class, $user);
-    }
+		$user = $this->em->getRepository(User::class)->findOneById($id);
+		$this->assertInstanceOf(User::class, $user);
+	}
 }

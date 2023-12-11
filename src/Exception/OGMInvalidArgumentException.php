@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the GraphAware Neo4j PHP OGM package.
+ *
+ * (c) GraphAware Ltd <info@graphaware.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 declare(strict_types=1);
 
 /*
@@ -13,6 +22,9 @@ declare(strict_types=1);
 
 namespace GraphAware\Neo4j\OGM\Exception;
 
+use function method_exists;
+use function spl_object_hash;
+
 /**
  * Contains exception messages for all invalid lifecycle state exceptions inside UnitOfWork.
  *
@@ -21,14 +33,14 @@ namespace GraphAware\Neo4j\OGM\Exception;
  */
 class OGMInvalidArgumentException extends \InvalidArgumentException
 {
-    public static function entityNotManaged(object $entity): OGMInvalidArgumentException
-    {
-        return new self('Entity ' . self::objectToString($entity) . ' is not managed. An entity is managed if ' .
-            'its fetched from the database or registered as new through EntityManager#persist');
-    }
+	public static function entityNotManaged(object $entity) : OGMInvalidArgumentException
+	{
+		return new self('Entity ' . self::objectToString($entity) . ' is not managed. An entity is managed if ' .
+			'its fetched from the database or registered as new through EntityManager#persist');
+	}
 
-    private static function objectToString(object $obj): string
-    {
-        return method_exists($obj, '__toString') ? (string) $obj : $obj::class . '@' . spl_object_hash($obj);
-    }
+	private static function objectToString(object $obj) : string
+	{
+		return method_exists($obj, '__toString') ? (string) $obj : $obj::class . '@' . spl_object_hash($obj);
+	}
 }
