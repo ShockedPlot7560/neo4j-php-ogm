@@ -18,6 +18,7 @@ use GraphAware\Neo4j\OGM\EntityManager;
 use GraphAware\Neo4j\OGM\Metadata\RelationshipEntityMetadata;
 use GraphAware\Neo4j\OGM\Util\ClassUtils;
 use Laudis\Neo4j\Databags\Statement;
+use Ramsey\Uuid\Uuid;
 
 class RelationshipEntityPersister
 {

@@ -128,19 +128,23 @@ class EntityHydrator
             $relationshipMetadata->initializeCollection($sourceEntity);
         }
 
-        if ($relationshipEntityMetadata->getStartNodeClass() == $relationshipEntityMetadata->getEndNodeClass()) {
-            // handle relationships between nodes of the same type
-            if ($relationshipMetadata->getDirection() === self::OUTGOING) {
+        if(!$relationshipEntityMetadata instanceof NodeEntityMetadata){
+            if ($relationshipEntityMetadata->getStartNodeClass() == $relationshipEntityMetadata->getEndNodeClass()) {
+                // handle relationships between nodes of the same type
+                if ($relationshipMetadata->getDirection() === self::OUTGOING) {
+                    $startNodeIsSourceEntity = true;
+                } elseif ($relationshipMetadata->getDirection() === self::INCOMING) {
+                    $startNodeIsSourceEntity = false;
+                } else {
+                    throw new MappingException('Invalid Relationship Entity annotations. Direction BOTH not supported on'
+                        . 'RelationshipEntities where startNode and endNode are of the same class');
+                }
+            } elseif ($relationshipEntityMetadata->getStartNodeClass() === $this->classMetadata->getClassName()) {
                 $startNodeIsSourceEntity = true;
-            } elseif ($relationshipMetadata->getDirection() === self::INCOMING) {
-                $startNodeIsSourceEntity = false;
             } else {
-                throw new MappingException('Invalid Relationship Entity annotations. Direction BOTH not supported on'
-                    . 'RelationshipEntities where startNode and endNode are of the same class');
+                $startNodeIsSourceEntity = false;
             }
-        } elseif ($relationshipEntityMetadata->getStartNodeClass() === $this->classMetadata->getClassName()) {
-            $startNodeIsSourceEntity = true;
-        } else {
+        }else{
             $startNodeIsSourceEntity = false;
         }
 
@@ -235,7 +239,7 @@ class EntityHydrator
             $entityName = $cqlAliasMap[$cqlAlias];
             $data = $collection ? $data : [$data];
             foreach ($data as $node) {
-                $id = $node->id();
+                $id = $node->getId();
 
                 // Check the entity is not managed yet by the uow
                 if (null !== $entity = $this->entityManager->getUnitOfWork()->getEntityById($id)) {
@@ -261,7 +265,7 @@ class EntityHydrator
         }
 
         $cm = null === $class ? $this->classMetadata->getClassName() : $class;
-        $id = $node->id();
+        $id = $node->getId();
 
         // Check the entity is not managed yet by the uow
         if (null !== $entity = $this->entityManager->getUnitOfWork()->getEntityById($id)) {
@@ -293,7 +297,7 @@ class EntityHydrator
 
             if ($metadata->hasConverter()) {
                 $converter = Converter::getConverter($metadata->getConverterType(), $fieldKey);
-                $value = $converter->toPHPValue($node->properties()->toArray(), $metadata->getConverterOptions());
+                $value = $converter->toPHPValue($node->getProperties()->toArray(), $metadata->getConverterOptions());
             } else {
                 try {
                     $value = $node->getProperty($fieldKey);
@@ -327,8 +331,11 @@ class EntityHydrator
         /** @var RelationshipEntityMetadata $relationshipEntityMetadata */
         $relationshipEntityMetadata =
             $this->entityManager->getClassMetadataFor($relationshipMetadata->getRelationshipEntityClass());
-        /* @todo will not work for Direction.BOTH */
-        return $relationshipEntityMetadata->getOtherClassNameForOwningClass($this->classMetadata->getClassName());
+        if($relationshipEntityMetadata instanceof NodeEntityMetadata){
+            return $relationshipEntityMetadata->getClassName();
+        }else{
+            return $relationshipEntityMetadata->getOtherClassNameForOwningClass($this->classMetadata->getClassName());
+        }
     }
 
     private function initRelationshipCollection($alias, $sourceEntity)

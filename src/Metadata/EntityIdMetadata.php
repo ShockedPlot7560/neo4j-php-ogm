@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace GraphAware\Neo4j\OGM\Metadata;
 
+use Ramsey\Uuid\UuidInterface;
 use ReflectionProperty;
 
 final class EntityIdMetadata
@@ -27,7 +28,11 @@ final class EntityIdMetadata
     {
         $this->reflectionProperty->setAccessible(true);
 
-        return $this->reflectionProperty->getValue($object);
+        $value = $this->reflectionProperty->getValue($object);
+        if($value instanceof UuidInterface){
+            return (int) $value->getInteger()->toString();
+        }
+        return $value;
     }
 
     public function setValue(object $object, string|int $value): void

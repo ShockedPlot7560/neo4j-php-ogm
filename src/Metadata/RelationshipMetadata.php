@@ -21,6 +21,8 @@ use GraphAware\Neo4j\OGM\Common\Collection;
 use GraphAware\Neo4j\OGM\Exception\MappingException;
 use GraphAware\Neo4j\OGM\Proxy\LazyCollection;
 use GraphAware\Neo4j\OGM\Util\ClassUtils;
+use Ramsey\Uuid\Nonstandard\Uuid;
+use Ramsey\Uuid\UuidInterface;
 use ReflectionProperty;
 
 final class RelationshipMetadata
@@ -173,7 +175,11 @@ final class RelationshipMetadata
     {
         $this->reflectionProperty->setAccessible(true);
 
-        return $this->reflectionProperty->getValue($object);
+        $value = $this->reflectionProperty->getValue($object);
+        if ($value instanceof UuidInterface){
+            return (int) $value->getInteger()->toString();
+        }
+        return $value;
     }
 
     public function setValue(object $object, mixed $value)
